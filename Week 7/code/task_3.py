@@ -2,56 +2,63 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def thomas_algorithm(a, b, c, d):
+def thomas(a, b, c, d):
     n = len(d)
-    c_ = np.zeros(n - 1)
-    d_ = np.zeros(n)
+    cp = c.copy()
+    dp = d.copy()
 
-    c_[0] = c[0] / b[0]
-    d_[0] = d[0] / b[0]
-
-    for i in range(1, n - 1):
-        c_[i] = c[i] / (b[i] - a[i - 1] * c_[i - 1])
     for i in range(1, n):
-        d_[i] = (d[i] - a[i - 1] * d_[i - 1]) / (b[i] - a[i - 1] * c_[i - 1])
+        m = a[i] / b[i - 1]
+        b[i] -= m * cp[i - 1]
+        dp[i] -= m * dp[i - 1]
 
-    u = np.zeros(n)
-    u[-1] = d_[-1]
+    x = np.zeros(n)
+    x[-1] = dp[-1] / b[-1]
     for i in range(n - 2, -1, -1):
-        u[i] = d_[i] - c_[i] * u[i + 1]
+        x[i] = (dp[i] - cp[i] * x[i + 1]) / b[i]
+    return x
 
-    return u
 
+N = 50
+dx = 1.0 / N
+x = np.linspace(0, 1, N + 1)
 
-L = 1.0
-T = 0.1
-N = 20
-M = 100
-h = L / (N + 1)
-dt = T / M
-lambda_ = 0.01
-r = lambda_ * dt / h ** 2
+k = 1.0
+dt = 0.001
+t_max = 0.1
+n_steps = int(t_max / dt)
+r = k * dt / dx ** 2
 
-U = np.zeros(N)
-A, B = 0, 1
+u_left = 0.0
+u_right = 0.0
 
-for _ in range(M):
-    a = -r * np.ones(N - 1)
-    b = (1 + 2 * r) * np.ones(N)
-    c = -r * np.ones(N - 1)
-    d = U.copy()
+u = np.sin(np.pi * x)
 
-    d[0] += r * A
-    d[-1] += r * B
+for n in range(n_steps):
+    n_int = N - 1
+    a_arr = -r * np.ones(n_int)
+    b_arr = (1 + 2 * r) * np.ones(n_int)
+    c_arr = -r * np.ones(n_int)
+    d_arr = u[1:-1].copy()
+    d_arr[0] += r * u_left
+    d_arr[-1] += r * u_right
+    u_new_inner = thomas(a_arr.copy(), b_arr.copy(), c_arr.copy(), d_arr)
+    u[0] = u_left
+    u[-1] = u_right
+    u[1:-1] = u_new_inner
 
-    U = thomas_algorithm(a, b, c, d)
+plt.figure(figsize=(8, 5))
+plt.plot(x, u, 'o-', label='Распределение температуры при t_max')
 
-x_full = np.linspace(0, L, N + 2)
-U_full = np.concatenate(([A], U, [B]))
-
-plt.plot(x_full, U_full, 'o-')
-plt.xlabel("x")
-plt.ylabel("U(x, T)")
+plt.xlabel('x')
+plt.ylabel('u(x, t_max)')
+plt.title('1D уравнение теплопроводности (неявная схема, метод Томаса)')
 plt.legend()
 plt.grid()
+
+plt.annotate("u(0)=0", xy=(0, u_left), xytext=(0.05, u_left + 0.2),
+             arrowprops=dict(facecolor='black', arrowstyle="->"), fontsize=9)
+plt.annotate("u(1)=0", xy=(1, u_right), xytext=(0.8, u_right + 0.2),
+             arrowprops=dict(facecolor='black', arrowstyle="->"), fontsize=9)
+
 plt.show()
